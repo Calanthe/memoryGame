@@ -1,0 +1,262 @@
+<!DOCTYPE HTML>
+<html>
+<body>
+
+<canvas id="myCanvas">
+Your browser does not support the canvas element.
+</canvas>
+
+<p id="moves">Moves: <span id="movecount">0</span></p>
+
+<script type="text/javascript">
+var Cell = {
+	row : -1,
+	column : -1,
+	twinIndex : -1,
+	icon : -1,
+	active : -1, //1 - active, 0 - inactive, -1 - out of board
+	init : function (row,column,twinIndex,icon,active){
+	  return{
+		row : row,
+		column : column,
+		twinIndex : twinIndex,
+		icon : icon,
+		active : active
+       };
+	}
+}
+
+var gCanvasElement;
+var gDrawingContext;
+
+var memoryGame = {
+	
+	kBoardWidth : 9,
+	kBoardHeight : 8,
+	kPieceWidth : 50,
+	kPieceHeight : 50,
+	kPixelWidth : 0,
+	kPixelHeight : 0,
+	kBoardDimension : 0,
+	
+	TwinArray : [],
+	IconArray : ['acrobat.png','addressbook.png','addressbook_.png','adobe.png','angry_birds.png','angrybirdsrio.png','chrome.png','computer.png','darkgrey_da.png','dribbble.png','droplr.png','facebook.png','foobar.png','gmail.png','guitar.png','home.png','icq.png','itunes.png','judo.png','mail.png','minecraft.png','mp3.png','netscape.png','opera.png','pdf.png','ps.png','rss.png','sims.png','skype.png','thunderbird.png','twitter.png','video.png','winamp.png','wmp.png','worldofgoo.png','zuma.png'],
+	
+	gPieces : [],
+
+	gSelectedPieceIndex : -1,
+	gSelectedPrevIndex1 : -1,
+	gSelectedPrevIndex2 : -1,
+	gMoveAllCount : -1,
+	gMoveCount : -1,
+	gMoveCountElem : -1,
+	gGameInProgress : false,
+		
+	getCursorPosition : function(el) { //taken from http://diveintohtml5.org/examples/canvas-halma.html
+	
+		var x;
+		var y;
+		if (el.pageX != undefined && el.pageY != undefined) {
+		x = el.pageX;
+		y = el.pageY;
+		}
+		else {
+		x = el.clientX + document.body.scrollLeft + document.documentElement.scrollLeft;
+		y = el.clientY + document.body.scrollTop + document.documentElement.scrollTop;
+		}
+		x -= gCanvasElement.offsetLeft;
+		y -= gCanvasElement.offsetTop;
+		x = Math.min(x, memoryGame.kBoardWidth * memoryGame.kPieceWidth);
+		y = Math.min(y, memoryGame.kBoardHeight * memoryGame.kPieceHeight);
+		var cell = Cell.init(Math.floor(y/memoryGame.kPieceHeight), Math.floor(x/memoryGame.kPieceWidth));
+		return cell;
+	},	
+		
+	memoryOnClick : function(e) {
+
+		var cell = memoryGame.getCursorPosition(e);
+
+		for (var i = 0; i < memoryGame.kBoardDimension; i++) {
+			if ((memoryGame.gPieces[i].active != -1) &&
+				(memoryGame.gPieces[i].row == cell.row) && 
+				(memoryGame.gPieces[i].column == cell.column)) {
+				memoryGame.clickOnPiece(i,memoryGame.gPieces[i].twinIndex);	    
+				return;
+			}
+		}
+		return;
+	},
+	
+	clickOnPiece : function(pieceIndex,TwinIndex) {
+
+		if (this.gSelectedPieceIndex == pieceIndex) { return; } //if we clicked the same item
+		this.gMoveAllCount++;
+		this.gPieces[pieceIndex].active = 1;
+		this.drawBoard(pieceIndex);
+		
+		if (this.gMoveAllCount % 2 == 0)
+		{
+			if (this.TwinArray[this.gSelectedPieceIndex] == TwinIndex)
+			{
+				//delete from board 2 selected icons
+				this.gPieces[pieceIndex].active = -1;
+				this.gPieces[this.gSelectedPieceIndex].active = -1;
+
+				var t=setTimeout("memoryGame.clearCells()",1000);
+				//var t=setTimeout("drawBoard()",1000);			
+			}
+			else
+			{
+				this.gPieces[pieceIndex].active = 0;
+				this.gPieces[this.gSelectedPieceIndex].active = 0;
+				this.gSelectedPrevIndex1 = pieceIndex;
+				this.gSelectedPrevIndex2 = this.gSelectedPieceIndex;
+			}	
+			this.gMoveCount++;
+			this.gSelectedPieceIndex = -1;		
+		}
+		else
+		{
+			this.gSelectedPieceIndex = pieceIndex;
+			if (this.gSelectedPrevIndex1!=-1) this.drawBoard(this.gSelectedPrevIndex1);
+			if (this.gSelectedPrevIndex2!=-1) this.drawBoard(this.gSelectedPrevIndex2);
+		}  
+	},
+	
+	isTheGameOver : function() {
+		for (var i = 0; i < this.kBoardDimension; i++) {
+				if (this.gPieces[i].active != -1)
+					return false;
+			}
+		return true;
+	},
+	
+	drawBoard : function(selected) {
+		if (this.gGameInProgress && this.isTheGameOver()) {
+			this.endGame();
+		}
+
+		if (selected == -1) //start the game, draw whole board
+		{
+			gDrawingContext.clearRect(0, 0, this.kPixelWidth, this.kPixelHeight);
+			gDrawingContext.beginPath();
+
+			//draw icons
+			for (var i = 0; i < this.kBoardDimension; i++) {		
+				if (this.gPieces[i].active != -1)
+				{
+					this.drawPiece(this.gPieces[i]);
+				}				
+			}			
+		}
+		else if (this.gPieces[selected].active != -1)//during the game draw only selected cells
+		{
+			var column = this.gPieces[selected].column;
+			var row = this.gPieces[selected].row;
+			var x = (column * this.kPieceWidth) + 1;
+			var y = (row * this.kPieceHeight) + 1;
+			
+			gDrawingContext.clearRect(x, y, this.kPieceWidth, this.kPieceHeight);
+			gDrawingContext.beginPath();
+		
+			//draw icon
+			this.drawPiece(this.gPieces[selected]);
+		}
+
+		this.gMoveCountElem.innerHTML = this.gMoveCount;
+	},
+	
+	clearCells : function()
+	{
+		for (var i = 0; i < this.kBoardDimension; i++) {
+			if (this.gPieces[i].active == -1)	
+			{
+				var column = this.gPieces[i].column;
+				var row = this.gPieces[i].row;
+				var x = (column * this.kPieceWidth) + 1;
+				var y = (row * this.kPieceHeight) + 1;
+				
+				gDrawingContext.clearRect(x, y, this.kPieceWidth, this.kPieceHeight);
+			}
+		}	
+	},
+	
+	drawPiece : function(p) {
+		var column = p.column;
+		var row = p.row;
+		var x = (column * this.kPieceWidth) + 1;
+		var y = (row * this.kPieceHeight) + 1;
+
+		var icon = new Image();
+		if (p.active == 1) icon.src = "icons/"+p.icon;
+		else icon.src = "icons/empty.png";
+		icon.onload = function() {
+			gDrawingContext.drawImage(icon, x,y);
+		};
+	},
+	
+	newGame : function() {
+	
+		this.prepareTwinArray();
+		
+		var ip = 0;
+		for (var i = 0; i < this.kBoardHeight; i++) {
+			for (var j = 0; j < this.kBoardWidth; j++) {
+				var TwinIndex = this.TwinArray[ip];		
+				this.gPieces[ip] = Cell.init(i, j, TwinIndex, this.IconArray[TwinIndex], 0);
+				ip++;
+				}
+		}
+		this.gSelectedPieceIndex = -1;
+		this.gMoveCount = 0;
+		this.gMoveAllCount = 0;
+		this.gGameInProgress = true;
+		this.drawBoard(-1);
+		
+	},
+	
+	prepareTwinArray : function(){
+	
+		var im = 0;
+		for (var i = 0; i < 2; i++) {
+			for (var j = 0; j < 36; j++) {
+				this.TwinArray[im] = j;
+				im++;
+				}
+		}
+		
+		this.shuffle(this.TwinArray);
+	},
+	
+	shuffle : function(o){ //function taken from http://snippets.dzone.com/posts/show/849
+		for(var j, x, i = o.length; i; j = parseInt(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);
+		return o;
+	},
+	
+	endGame : function() {
+		this.gSelectedPieceIndex = -1;
+		this.gGameInProgress = false;
+	},
+	
+	initGame : function (canvasElement, moveCountElement) {		
+	
+		this.kPixelWidth = 1 + (this.kBoardWidth * this.kPieceWidth);
+		this.kPixelHeight = 1 + (this.kBoardHeight * this.kPieceHeight);
+		this.kBoardDimension = (this.kBoardHeight * this.kBoardWidth);
+		
+		gCanvasElement = canvasElement;
+		gCanvasElement.width = this.kPixelWidth;
+		gCanvasElement.height = this.kPixelHeight;						
+		this.gMoveCountElem = moveCountElement;	
+		gDrawingContext = gCanvasElement.getContext("2d");		
+		this.newGame();
+		gCanvasElement.addEventListener("click", this.memoryOnClick, false);
+	}
+	
+};
+memoryGame.initGame(document.getElementById('myCanvas'), document.getElementById('movecount'));
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,257 @@
+<!DOCTYPE HTML>
+<html>
+<body>
+
+<canvas id="myCanvas">
+Your browser does not support the canvas element.
+</canvas>
+
+<p id="moves">Moves: <span id="movecount">0</span></p>
+
+<script type="text/javascript">
+var kBoardWidth = 9;
+var kBoardHeight= 8;
+var kPieceWidth = 50;
+var kPieceHeight= 50;
+var kPixelWidth = 1 + (kBoardWidth * kPieceWidth);
+var kPixelHeight= 1 + (kBoardHeight * kPieceHeight);
+var kBoardDimension = (kBoardHeight * kBoardWidth);
+
+var TwinArray = [];
+var IconArray = ['acrobat.png','addressbook.png','addressbook_.png','adobe.png','angry_birds.png','angrybirdsrio.png','chrome.png','computer.png','darkgrey_da.png','dribbble.png','droplr.png','facebook.png','foobar.png','gmail.png','guitar.png','home.png','icq.png','itunes.png','judo.png','mail.png','minecraft.png','mp3.png','netscape.png','opera.png','pdf.png','ps.png','rss.png','sims.png','skype.png','thunderbird.png','twitter.png','video.png','winamp.png','wmp.png','worldofgoo.png','zuma.png'];
+//var IconArray = ['amazon.png','android.png','aol.png','apple.png','appstore.png','behance.png','bing.png','blogger.png','delicious.png','deviantart.png','digg.png','doppler.png','dribbble.png','ebay.png','facebook.png','flickr.png','friendfeed.png','google.png','grooveshark.png','identica.png','lastfm.png','linkedin.png','myspace.png','picasa.png','reddit.png','rss.png','skype.png','stumbleupon.png','technorati.png','tumblr.png','twitter.png','vimeo.png','windows.png','wordpress.png','yahoo.png','youtube.png'];
+
+var gCanvasElement;
+var gDrawingContext;
+
+var gPieces = [];
+
+var gSelectedPieceIndex;
+var gSelectedPrevIndex1 = -1;
+var gSelectedPrevIndex2 = -1;
+
+var gMoveAllCount;
+var gMoveCount;
+var gMoveCountElem;
+var gGameInProgress;
+
+initGame(document.getElementById('myCanvas'), document.getElementById('movecount'));
+
+function Cell(row, column, twinIndex, icon, active) {
+    this.row = row;
+    this.column = column;
+	this.twinIndex = twinIndex;
+	this.icon = icon;
+	this.active = active; //1 - active, 0 - inactive, -1 - out of board
+}
+
+function getCursorPosition(e) { //taken from http://diveintohtml5.org/examples/canvas-halma.html
+    /* returns Cell with .row and .column properties */
+    var x;
+    var y;
+    if (e.pageX != undefined && e.pageY != undefined) {
+	x = e.pageX;
+	y = e.pageY;
+    }
+    else {
+	x = e.clientX + document.body.scrollLeft + document.documentElement.scrollLeft;
+	y = e.clientY + document.body.scrollTop + document.documentElement.scrollTop;
+    }
+    x -= gCanvasElement.offsetLeft;
+    y -= gCanvasElement.offsetTop;
+    x = Math.min(x, kBoardWidth * kPieceWidth);
+    y = Math.min(y, kBoardHeight * kPieceHeight);
+    var cell = new Cell(Math.floor(y/kPieceHeight), Math.floor(x/kPieceWidth));
+    return cell;
+}
+
+function memoryOnClick(e) {
+    var cell = getCursorPosition(e);
+
+    for (var i = 0; i < kBoardDimension; i++) {
+		if ((gPieces[i].active != -1) &&
+			(gPieces[i].row == cell.row) && 
+			(gPieces[i].column == cell.column)) {
+			clickOnPiece(i,gPieces[i].twinIndex);	    
+			return;
+		}
+    }
+    return;
+}
+
+function clickOnPiece(pieceIndex,TwinIndex) {
+
+    if (gSelectedPieceIndex == pieceIndex) { return; } //if we clicked the same item
+	gMoveAllCount++;
+	gPieces[pieceIndex].active = 1;
+	drawBoard(pieceIndex);
+	
+	if (gMoveAllCount % 2 == 0)
+	{
+		if (TwinArray[gSelectedPieceIndex] == TwinIndex)
+		{
+			//delete from board 2 selected icons
+			gPieces[pieceIndex].active = -1;
+			gPieces[gSelectedPieceIndex].active = -1;
+
+			var t=setTimeout("clearCells()",1000);
+			//var t=setTimeout("drawBoard()",1000);			
+		}
+		else
+		{
+			gPieces[pieceIndex].active = 0;
+			gPieces[gSelectedPieceIndex].active = 0;
+			gSelectedPrevIndex1 = pieceIndex;
+			gSelectedPrevIndex2 = gSelectedPieceIndex;
+		}	
+		gMoveCount++;
+		gSelectedPieceIndex = -1;		
+	}
+    else
+	{
+		gSelectedPieceIndex = pieceIndex;
+		if (gSelectedPrevIndex1!=-1) drawBoard(gSelectedPrevIndex1);
+		if (gSelectedPrevIndex2!=-1) drawBoard(gSelectedPrevIndex2);
+	}  
+}
+
+function isTheGameOver() {
+    for (var i = 0; i < kBoardDimension; i++) {
+			if (gPieces[i].active != -1)
+				return false;
+		}
+    return true;
+}
+
+function drawBoard(selected) {
+    if (gGameInProgress && isTheGameOver()) {
+		endGame();
+    }
+
+    if (selected == -1) //start the game, draw whole board
+	{
+		gDrawingContext.clearRect(0, 0, kPixelWidth, kPixelHeight);
+		gDrawingContext.beginPath();
+    
+		//draw icons
+		for (var i = 0; i < kBoardDimension; i++) {
+			if (gPieces[i].active != -1)
+			drawPiece(gPieces[i]);
+		}
+	}
+	else if (gPieces[selected].active != -1)//during the game draw only selected cells
+	{
+		var column = gPieces[selected].column;
+		var row = gPieces[selected].row;
+		var x = (column * kPieceWidth) + 1;
+		var y = (row * kPieceHeight) + 1;
+		
+		gDrawingContext.clearRect(x, y, kPieceWidth, kPieceHeight);
+		gDrawingContext.beginPath();
+    
+		//draw icon
+		drawPiece(gPieces[selected]);
+	}
+
+    gMoveCountElem.innerHTML = gMoveCount;
+}
+
+function clearCells()
+{
+	for (var i = 0; i < kBoardDimension; i++) {
+		if (gPieces[i].active == -1)	
+		{
+			var column = gPieces[i].column;
+			var row = gPieces[i].row;
+			var x = (column * kPieceWidth) + 1;
+			var y = (row * kPieceHeight) + 1;
+			
+			gDrawingContext.clearRect(x, y, kPieceWidth, kPieceHeight);
+		}
+	}
+	
+}
+
+function drawPiece(p) {
+    var column = p.column;
+    var row = p.row;
+    var x = (column * kPieceWidth) + 1;
+    var y = (row * kPieceHeight) + 1;
+	
+	var icon = new Image();
+	if (p.active == 1) icon.src = "icons/"+p.icon;
+	else icon.src = "icons/empty.png";
+	icon.onload = function() {
+		gDrawingContext.drawImage(icon, x,y);
+	};
+
+}
+
+/*if (typeof resumeGame != "function") {
+    saveGameState = function() {
+	return false;
+    }
+    resumeGame = function() {
+	return false;
+    }
+}*/
+
+function newGame() {
+
+	prepareTwinArray();
+	
+	var ip = 0;
+	for (var i = 0; i < kBoardHeight; i++) {
+		for (var j = 0; j < kBoardWidth; j++) {
+			var TwinIndex = TwinArray[ip];	
+			gPieces[ip] = new Cell(i, j, TwinIndex, IconArray[TwinIndex], 0);
+			ip++;
+			}
+    }
+
+    gSelectedPieceIndex = -1;
+    gMoveCount = 0;
+	gMoveAllCount = 0;
+    gGameInProgress = true;
+    drawBoard(-1);
+}
+
+function prepareTwinArray()
+{
+	var im = 0;
+	for (var i = 0; i < 2; i++) {
+		for (var j = 0; j < 36; j++) {
+			TwinArray[im] = j;
+			im++;
+			}
+    }
+	shuffle(TwinArray);
+}
+
+function shuffle(o){ //function taken from http://snippets.dzone.com/posts/show/849
+	for(var j, x, i = o.length; i; j = parseInt(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);
+	return o;
+};
+
+function endGame() {
+    gSelectedPieceIndex = -1;
+    gGameInProgress = false;
+}
+
+function initGame(canvasElement, moveCountElement) {
+
+    gCanvasElement = canvasElement;
+    gCanvasElement.width = kPixelWidth;
+    gCanvasElement.height = kPixelHeight;
+    gCanvasElement.addEventListener("click", memoryOnClick, false);
+    gMoveCountElem = moveCountElement;
+    gDrawingContext = gCanvasElement.getContext("2d");
+    //if (typeof resumeGame == 'undefined') {
+		newGame();
+    //}
+}
+
+</script>
+
+</body>
+</html>
