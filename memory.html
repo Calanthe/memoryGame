@@ -54,33 +54,35 @@ var memoryGame = {
 		
 	getCursorPosition : function(el) { //taken from http://diveintohtml5.org/examples/canvas-halma.html
 	
+		var self = memoryGame;
 		var x;
 		var y;
 		if (el.pageX != undefined && el.pageY != undefined) {
-		x = el.pageX;
-		y = el.pageY;
+			x = el.pageX;
+			y = el.pageY;
 		}
 		else {
-		x = el.clientX + document.body.scrollLeft + document.documentElement.scrollLeft;
-		y = el.clientY + document.body.scrollTop + document.documentElement.scrollTop;
+			x = el.clientX + document.body.scrollLeft + document.documentElement.scrollLeft;
+			y = el.clientY + document.body.scrollTop + document.documentElement.scrollTop;
 		}
 		x -= gCanvasElement.offsetLeft;
 		y -= gCanvasElement.offsetTop;
-		x = Math.min(x, memoryGame.kBoardWidth * memoryGame.kPieceWidth);
-		y = Math.min(y, memoryGame.kBoardHeight * memoryGame.kPieceHeight);
-		var cell = Cell.init(Math.floor(y/memoryGame.kPieceHeight), Math.floor(x/memoryGame.kPieceWidth));
+		x = Math.min(x, self.kBoardWidth * self.kPieceWidth);
+		y = Math.min(y, self.kBoardHeight * self.kPieceHeight);
+		var cell = Cell.init(Math.floor(y/self.kPieceHeight), Math.floor(x/self.kPieceWidth));
 		return cell;
 	},	
 		
 	memoryOnClick : function(e) {
 
-		var cell = memoryGame.getCursorPosition(e);
+		var self = memoryGame;
+		var cell = self.getCursorPosition(e);
 
-		for (var i = 0; i < memoryGame.kBoardDimension; i++) {
-			if ((memoryGame.gPieces[i].active != -1) &&
-				(memoryGame.gPieces[i].row == cell.row) && 
-				(memoryGame.gPieces[i].column == cell.column)) {
-				memoryGame.clickOnPiece(i,memoryGame.gPieces[i].twinIndex);	    
+		for (var i = 0; i < self.kBoardDimension; i++) {
+			if ((self.gPieces[i].active != -1) &&
+				(self.gPieces[i].row == cell.row) && 
+				(self.gPieces[i].column == cell.column)) {
+				self.clickOnPiece(i,self.gPieces[i].twinIndex);	    
 				return;
 			}
 		}
